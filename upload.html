@@ -1,0 +1,106 @@
+ <!DOCTYPE html>
+<html>
+<head>
+    <title>Document Similarity Checker for Academic Writing</title>
+    <style>
+        body { background: #1a1a1a; color: #fff; font-family: Arial; }
+        .container { max-width: 600px; margin: auto; padding: 40px; }
+        .upload-section { margin-bottom: 30px; }
+        input[type="file"] { display: none; }
+        label { padding: 10px 20px; background: #232323; border-radius: 5px; cursor: pointer; }
+        button { padding: 10px 20px; border: none; background-color: #4CAF50; color: white; cursor: pointer; }
+        #result { margin-top: 20px; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Document Similarity Checker</h1>
+        <form id="uploadForm">
+            <div class="upload-section">
+                <h3>Upload the first PDF</h3>
+                <input type="file" name="file1" id="file1" accept="application/pdf" required>
+                <label for="file1">Browse first file</label>
+                <span id="file1-name" style="margin-left:10px; color:#fff;"></span>
+            </div>
+            <div class="upload-section">
+                <h3>Upload the second PDF</h3>
+                <input type="file" name="file2" id="file2" accept="application/pdf" required>
+                <label for="file2">Browse second file</label>
+                <span id="file2-name" style="margin-left:10px; color:#fff;"></span>
+            </div>
+            <button type="submit">CALCULATE SIMILARITY SCORE</button>
+        </form>
+        <div id="result"></div>
+    </div>
+
+    <script>
+    document.getElementById('file1').addEventListener('change', function(){
+        var fileName = this.files[0] ? this.files[0].name : "";
+        document.getElementById('file1-name').textContent = fileName;
+    });
+    
+    document.getElementById('file2').addEventListener('change', function(){
+        var fileName = this.files[0] ? this.files[0].name : "";
+        document.getElementById('file2-name').textContent = fileName;
+    });
+    
+    document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const formData = new FormData(this);
+
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        const resultDiv = document.getElementById('result');
+
+        if (response.ok) {
+            // Show overall similarity score
+            if (data.similarity_score !== undefined) {
+                resultDiv.innerHTML = `<strong>Overall Similarity Score:</strong> ${data.similarity_score.toFixed(3)}<br>`;
+            } else {
+                resultDiv.textContent = 'No similarity score returned.';
+            }
+
+            // Show document-level cosine and TF-IDF scores below overall
+            if (data.cosine_similarity_score !== undefined) {
+                resultDiv.innerHTML += `<b>Cosine Similarity :</b> ${data.cosine_similarity_score.toFixed(3)}<br>`;
+            }
+            if (data.tfidf_similarity_score !== undefined) {
+                resultDiv.innerHTML += `<b>TF -IDF Similarity :</b> ${data.tfidf_similarity_score.toFixed(3)}<br>`;
+            }
+
+            // Scrollable container of extracted text (sentences) with plagiarized sentences highlighted.
+            if (data.sentences && data.plagiarizedIndices) {
+                const container = document.createElement('div');
+                container.style.marginTop = "12px";
+                container.style.background = "#222";
+                container.style.padding = "12px";
+                container.style.borderRadius = "5px";
+                container.style.maxHeight = "320px";
+                container.style.overflowY = "auto";
+                container.style.lineHeight = '1.6';
+                data.sentences.forEach((sentence, idx) => {
+                    const span = document.createElement('span');
+                    span.textContent = sentence + ' ';
+                    span.style.display = 'block';
+                    span.style.padding = '4px';
+                    if (data.plagiarizedIndices.includes(idx)){
+                        span.style.backgroundColor = 'yellow';
+                        span.style.color = '#000';
+                    }
+                    container.appendChild(span);
+                });
+                resultDiv.appendChild(container);
+            }
+        } else {
+            resultDiv.textContent = 'Error: ' + (data.error || 'Unknown error');
+        }
+});
+    </script>
+</body>
+</html>
